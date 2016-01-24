@@ -1,0 +1,209 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Three.JS Model Viewer - Using WebGL</title>
+    <script src="js/three.js"></script>
+    <script src="js/OBJLoader.js"></script>
+    <script src="js/Detector.js"></script>
+</head>
+<body style='margin: 0px; overflow: hidden;'>
+
+    <script>
+        var container;
+        var camera, scene, renderer;
+
+        var targetRotation = 0;
+        var targetRotationOnMouseDown = 0;
+        var targetRotationY = 0;
+        var targetRotationOnMouseDownY = 0;
+
+        var mouseX = 0;
+        var mouseXOnMouseDown = 0;
+
+        var mouseY = 0;
+        var mouseYOnMouseDown = 0;
+
+        var windowHalfX = window.innerWidth / 2;
+        var windowHalfY = window.innerHeight / 2;
+
+        var object;
+
+        var object2, object3;
+
+        init();
+        animate();
+
+        function init() {
+            // CONTAINER
+            container = document.createElement('div');
+            document.body.appendChild(container);
+
+            // CAMERA
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+            camera.position.z = 100;
+
+
+            // This is the scene we will add all objects to.
+            scene = new THREE.Scene();
+
+            // LIGHT
+            var ambient = new THREE.AmbientLight(0x888888);
+            scene.add(ambient);
+
+            var directionalLight = new THREE.DirectionalLight(0x888888);
+            directionalLight.position.set(0, 0, 1).normalize();
+            scene.add(directionalLight);
+
+            // MANAGER
+            var manager = new THREE.LoadingManager();
+            manager.onProgress = function (item, loaded, total) {
+                //console.log(item, loaded, total);
+            };
+            var texture = new THREE.Texture();
+            var loader = new THREE.ImageLoader(manager);
+
+            // TEXTURE
+            loader.load('assets/Untitled2.png', function (image) {
+                texture.image = image;
+                texture.needsUpdate = true;
+            });
+
+            // LOADER
+            var loader = new THREE.OBJLoader(manager);
+
+            // OBJECT 1
+            loader.load('assets/iphone5c.obj', function (event) {
+                object = event;
+                object.traverse(function (child) {
+                    if (child instanceof THREE.Mesh) {
+
+                        child.material = new THREE.MeshPhongMaterial({
+                            specular: 0x888888,
+                            shininess: 100,
+                            shading: THREE.FlatShading, // TRY THREE.SmoothShading
+                            map: texture    
+                        });
+                        child.geometry.mergeVertices();
+                        child.geometry.computeFaceNormals;
+                        child.geometry.computeVertexNormals();
+                    }
+                });
+                object.scale = new THREE.Vector3(125, 125, 125);
+                scene.add(object);
+            });
+
+            // RENDER
+            renderer = new THREE.WebGLRenderer({
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            renderer.setClearColor(0xFFFFFF, 1);
+
+            // EVENTS
+            document.addEventListener('mousedown', onDocumentMouseDown, false);
+            document.addEventListener('touchstart', onDocumentTouchStart, false);
+            document.addEventListener('touchmove', onDocumentTouchMove, false);
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            windowHalfX = window.innerWidth / 2;
+            windowHalfY = window.innerHeight / 2;
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onDocumentMouseDown(event) {
+            event.preventDefault();
+
+            document.addEventListener('mousemove', onDocumentMouseMove, false);
+            document.addEventListener('mouseup', onDocumentMouseUp, false);
+            document.addEventListener('mouseout', onDocumentMouseOut, false);
+
+            mouseXOnMouseDown = event.clientX - windowHalfX;
+            mouseYOnMouseDown = event.clientY - windowHalfY;
+            targetRotationOnMouseDown = targetRotation;
+            targetRotationOnMouseDownY = targetRotationY;
+        }
+
+        function onDocumentMouseMove(event) {
+            mouseX = event.clientX - windowHalfX;
+            mouseY = event.clientY - windowHalfY;
+
+            targetRotation = targetRotationOnMouseDown + (mouseX - mouseXOnMouseDown) * 0.02;
+            targetRotationY = targetRotationOnMouseDownY + (mouseY - mouseYOnMouseDown) * 0.02;
+        }
+
+        function onDocumentMouseUp(event) {
+            document.removeEventListener('mousemove', onDocumentMouseMove, false);
+            document.removeEventListener('mouseup', onDocumentMouseUp, false);
+            document.removeEventListener('mouseout', onDocumentMouseOut, false);
+        }
+
+        function onDocumentMouseOut(event) {
+            document.removeEventListener('mousemove', onDocumentMouseMove, false);
+            document.removeEventListener('mouseup', onDocumentMouseUp, false);
+            document.removeEventListener('mouseout', onDocumentMouseOut, false);
+        }
+
+        function onDocumentTouchStart(event) {
+            if (event.touches.length === 1) {
+                event.preventDefault();
+
+                mouseXOnMouseDown = event.touches[0].pageX - windowHalfX;
+                targetRotationOnMouseDown = targetRotation;
+
+                mouseYOnMouseDown = event.touches[0].pageY - windowHalfY;
+                targetRotationOnMouseDownY = targetRotationY;
+            }
+        }
+
+        function onDocumentTouchMove(event) {
+            if (event.touches.length === 1) {
+                event.preventDefault();
+
+                mouseX = event.touches[0].pageX - windowHalfX;
+                targetRotation = targetRotationOnMouseDown + (mouseX - mouseXOnMouseDown) * 0.05;
+
+                mouseY = event.touches[0].pageY - windowHalfY;
+                targetRotationY = targetRotationOnMouseDownY + (mouseY - mouseYOnMouseDown) * 0.05;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render()
+        }
+
+        function render() {
+            if (object) {
+                object.rotation.y += (targetRotation - object.rotation.y) * 0.05;
+                object.rotation.x += (targetRotationY - object.rotation.x) * 0.05;
+                if (object.rotation.x > 0.7) { object.rotation.x = 0.7; targetRotationY = 0.7 }
+                if (object.rotation.x < -0.7) { object.rotation.x = -0.7; targetRotationY = -0.7 }
+            }
+            if (object2) {
+                object2.rotation.y += (targetRotation - object2.rotation.y) * 0.05;
+                object2.rotation.x += (targetRotationY - object2.rotation.x) * 0.05;
+                if (object2.rotation.x > 0.7) { object2.rotation.x = 0.7; targetRotationY = 0.7 }
+                if (object2.rotation.x < -0.7) { object2.rotation.x = -0.7; targetRotationY = -0.7 }
+            }
+            if (object3) {
+                object3.rotation.y += (targetRotation - object3.rotation.y) * 0.05;
+                object3.rotation.x += (targetRotationY - object3.rotation.x) * 0.05;
+                if (object3.rotation.x > 0.7) { object3.rotation.x = 0.7; targetRotationY = 0.7 }
+                if (object3.rotation.x < -0.7) { object3.rotation.x = -0.7; targetRotationY = -0.7 }
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+
+</body>
+</html>
